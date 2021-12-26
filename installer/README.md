@@ -118,6 +118,24 @@ kubectl get configmaps gitpod-app -o jsonpath='{.data.app\.yaml}' \
 cluster. This will include `Secrets` generated from internal `Certificates`
 and `PersistentVolumeClaims`. These will need to be manually deleted.
 
+# Advanced topics
+
+## Post-processing the YAML
+
+The Gitpod Installer is designed as a way of providing you a robust and well-tested
+framework for installing Gitpod to your own infrastructure. There may be times when
+this framework doesn't meet your individual requirements. In these situations, you
+should post-process the generated YAML.
+
+As an example, this will allow you to change the `proxy` service to a `ClusterIP`
+type instead of `LoadBalancer` using [yq](https://mikefarah.gitbook.io/yq).
+
+```shell
+yq eval-all --inplace \
+  '(select(.kind == "Service" and .metadata.name == "proxy") | .spec.type) |= "ClusterIP"' \
+  gitpod.yaml
+```
+
 ---
 
 # What is installed
