@@ -67,7 +67,7 @@ var gitTrackCommand = &cobra.Command{
 			Timestamp:           time.Now().Unix(),
 		}
 		event := &serverapi.RemoteTrackMessage{
-			Event:  "git_command",
+			Event:      "git_command",
 			Properties: *params,
 		}
 		log.WithField("command", gitTrackCommandOpts.GitCommand).
