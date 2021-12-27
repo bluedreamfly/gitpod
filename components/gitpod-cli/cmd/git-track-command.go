@@ -53,15 +53,22 @@ var gitTrackCommand = &cobra.Command{
 			log.WithError(err).Fatal("error connecting to supervisor")
 		}
 
-		params := &serverapi.GitEventParams{
+		type GitEventParams struct {
+			Command             string `json:"command,omitempty"`
+			WorkspaceId         string `json:"workspaceId,omitempty"`
+			WorkspaceInstanceId string `json:"workspaceInstanceId,omitempty"`
+			Timestamp           int64  `json:"timestamp,omitempty"`
+		}
+
+		params := &GitEventParams{
 			Command:             gitTrackCommandOpts.GitCommand,
 			WorkspaceId:         wsInfo.WorkspaceId,
 			WorkspaceInstanceId: wsInfo.InstanceId,
 			Timestamp:           time.Now().Unix(),
 		}
-		event := &serverapi.EventParams{
-			EventName:  "git_command",
-			Parameters: *params,
+		event := &serverapi.RemoteTrackMessage{
+			Event:  "git_command",
+			Properties: *params,
 		}
 		log.WithField("command", gitTrackCommandOpts.GitCommand).
 			Info("tracking the GitCommand event")

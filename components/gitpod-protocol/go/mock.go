@@ -541,7 +541,7 @@ func (mr *MockAPIInterfaceMockRecorder) GuessGitTokenScopes(ctx, params interfac
 }
 
 // TrackEvent indicates an expected call of TrackEvent.
-func (m *MockAPIInterface) TrackEvent(ctx context.Context, params *EventParams) error {
+func (m *MockAPIInterface) TrackEvent(ctx context.Context, params *RemoteTrackMessage) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "TrackEvent", ctx, params)
 	ret0, _ := ret[0].(error)
