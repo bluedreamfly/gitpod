@@ -1,0 +1,26 @@
+<!--
+ Copyright (c) 2021 Gitpod GmbH. All rights reserved.
+ Licensed under the GNU Affero General Public License (AGPL).
+ See License-AGPL.txt in the project root for license information.
+-->
+
+<idea-plugin>
+    <id>io.gitpod.gateway</id>
+    <name>gitpod-support</name>
+    <vendor>Gitpod</vendor>
+
+    <!-- Product and plugin compatibility requirements -->
+    <!-- https://plugins.jetbrains.com/docs/intellij/plugin-compatibility.html -->
+    <depends>com.intellij.modules.platform</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <httpRequestHandler implementation="io.gitpod.jetbrains.auth.GitpodAuthCallbackHandler"/>
+    </extensions>
+
+    <extensions defaultExtensionNs="com.jetbrains">
+        <gatewayConnectionProvider implementation="io.gitpod.jetbrains.gateway.GitpodConnectionProvider" />
+    </extensions>
+
+    <applicationListeners>
+    </applicationListeners>
+</idea-plugin>

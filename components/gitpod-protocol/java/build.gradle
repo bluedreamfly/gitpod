@@ -27,6 +27,10 @@ java {
     withJavadocJar()
 }
 
+compileJava {
+    sourceCompatibility = "11"
+    targetCompatibility = "11"
+}
 
 publishing {
     publications {
