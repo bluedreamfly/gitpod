@@ -2041,7 +2041,7 @@ type GuessedGitTokenScopes struct {
 }
 
 type RemoteTrackMessage struct {
-	Event string `json:"event,omitempty"`
+	Event      string      `json:"event,omitempty"`
 	Properties interface{} `json:"properties,omitempty"`
 }
 
