@@ -27,6 +27,11 @@ public class ConnectionHelper {
     public GitpodClient connect(final String uri, final String origin, final String token)
             throws DeploymentException, IOException {
         final GitpodClientImpl gitpodClient = new GitpodClientImpl();
+        return connect(uri, origin, token, gitpodClient);
+    }
+
+    public GitpodClient connect(final String uri, final String origin, final String token, GitpodClient gitpodClient)
+            throws DeploymentException, IOException {
 
         final WebSocketEndpoint<GitpodServer> webSocketEndpoint = new WebSocketEndpoint<GitpodServer>() {
             @Override

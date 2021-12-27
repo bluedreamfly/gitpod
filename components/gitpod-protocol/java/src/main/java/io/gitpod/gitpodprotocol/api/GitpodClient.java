@@ -4,8 +4,15 @@
 
 package io.gitpod.gitpodprotocol.api;
 
+import org.eclipse.lsp4j.jsonrpc.services.JsonNotification;
+
+import io.gitpod.gitpodprotocol.api.entities.WorkspaceInstance;
+
 public interface GitpodClient {
     void connect(GitpodServer server);
 
     GitpodServer server();
+
+    @JsonNotification
+	void onInstanceUpdate(WorkspaceInstance instance);
 }

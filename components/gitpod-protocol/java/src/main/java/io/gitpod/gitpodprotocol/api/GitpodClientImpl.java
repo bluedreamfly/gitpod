@@ -4,6 +4,8 @@
 
 package io.gitpod.gitpodprotocol.api;
 
+import io.gitpod.gitpodprotocol.api.entities.WorkspaceInstance;
+
 public class GitpodClientImpl implements GitpodClient {
 
     private GitpodServer server;
@@ -19,5 +21,10 @@ public class GitpodClientImpl implements GitpodClient {
             throw new IllegalStateException("server is null");
         }
         return this.server;
+    }
+
+    @Override
+    public void onInstanceUpdate(WorkspaceInstance instance) {
+
     }
 }
