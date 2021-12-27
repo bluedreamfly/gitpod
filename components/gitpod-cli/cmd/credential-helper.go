@@ -63,10 +63,11 @@ var credentialHelper = &cobra.Command{
 		err = gitCommandTracker.Start()
 		if err != nil {
 			log.WithError(err).Print("error spawning tracker")
-		}
-		err = gitCommandTracker.Process.Release()
-		if err != nil {
-			log.WithError(err).Print("error releasing tracker")
+		} else {
+			err = gitCommandTracker.Process.Release()
+			if err != nil {
+				log.WithError(err).Print("error releasing tracker")
+			}
 		}
 
 		host := parseHostFromStdin()
