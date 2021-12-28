@@ -9,24 +9,41 @@ import { log } from '@gitpod/gitpod-protocol/lib/util/logging';
 import { URL } from 'url';
 import * as express from 'express';
 import * as crypto from 'crypto';
+import * as WebSocket from 'ws';
 import { GitpodHostUrl } from '@gitpod/gitpod-protocol/lib/util/gitpod-host-url';
 import * as session from 'express-session';
 import { repeat } from '@gitpod/gitpod-protocol/lib/util/repeat';
 
+/** used for debugging to make sure we're not leaking websockets here */
+let globalPingPongCounter = 0;
+
 export const pingPong: WsRequestHandler = (ws, req, next) => {
     let pingSentTimer: any;
+    let danglingTimeoutCounter = 0;
     const disposable = repeat(() => {
-        if (ws.readyState !== ws.OPEN) {
+        if (ws.readyState === WebSocket.CLOSING || ws.readyState === WebSocket.CLOSED) {
+            danglingTimeoutCounter++;
+            log.warn("websocket ping-pong: dangling timer!", { readyState: ws.readyState, counter: danglingTimeoutCounter, globalPingPongCounter });
+            // disposable.dispose(); if this happens very often we should uncomment this line!
+            return;
+        }
+        danglingTimeoutCounter = 0;
+
+        if (ws.readyState === WebSocket.CONNECTING) {
+            // we cannot ping yet, but want to do later
             return;
         }
         // wait 10 secs for a pong
         pingSentTimer = setTimeout(() => {
-            // Happens very often, we do not want to spam the logs here
+            // happens very often, we do not want to spam the logs here
             ws.terminate();
             disposable.dispose();
+            globalPingPongCounter--;
         }, 10000);
         ws.ping();
-    }, 30000)
+    }, 30000);
+    globalPingPongCounter++;
+
     ws.on('pong', () => {
         if (pingSentTimer) {
             clearTimeout(pingSentTimer);
@@ -38,7 +55,9 @@ export const pingPong: WsRequestHandler = (ws, req, next) => {
     });
     ws.on('close', () => {
         disposable.dispose();
-    })
+        globalPingPongCounter--;
+    });
+    // on('error', ...) is handled in 'handleError' below
     next();
 }
 

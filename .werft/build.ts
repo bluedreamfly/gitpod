@@ -14,6 +14,7 @@ import { createHash } from "crypto";
 import { InstallMonitoringSatelliteParams, installMonitoringSatellite, observabilityStaticChecks } from './observability/monitoring-satellite';
 import { SpanStatusCode } from '@opentelemetry/api';
 import * as Tracing from './observability/tracing'
+import * as VM from './vm/vm'
 
 // Will be set once tracing has been initialized
 let werft: Werft
@@ -58,6 +59,7 @@ const phases = {
     PREDEPLOY: 'predeploy',
     DEPLOY: 'deploy',
     TRIGGER_INTEGRATION_TESTS: 'trigger integration tests',
+    VM: 'vm'
 }
 
 // Werft slices for deploy phase via installer
@@ -72,6 +74,10 @@ const installerSlices = {
     INSTALLER_POST_PROCESSING: "installer post processing",
     APPLY_INSTALL_MANIFESTS: "installer apply",
     DEPLOYMENT_WAITING: "monitor server deployment"
+}
+
+const vmSlices = {
+    BOOT_VM: 'Booting VM'
 }
 
 export function parseVersion(context) {
@@ -142,6 +148,7 @@ export async function build(context, version) {
     const withPayment= "with-payment" in buildConfig;
     const withObservability = "with-observability" in buildConfig;
     const withHelm = "with-helm" in buildConfig;
+    const withVM = "with-vm" in buildConfig;
 
     const jobConfig = {
         buildConfig,
@@ -282,6 +289,23 @@ export async function build(context, version) {
         withPayment,
         withObservability,
     };
+
+    if (withVM) {
+        werft.phase(phases.VM, "Start VM");
+
+        if (!VM.vmExists({ name: destname })) {
+            werft.log(vmSlices.BOOT_VM, 'Starting VM')
+            VM.startVM({ name: destname })
+        } else {
+            werft.log(vmSlices.BOOT_VM, 'VM already exists')
+        }
+
+        werft.log(vmSlices.BOOT_VM, 'Waiting for VM to be ready')
+        VM.waitForVM({ name: destname, timeoutMS: 1000 * 60 * 3 })
+
+        werft.done(phases.VM)
+        return
+    }
 
     werft.phase(phases.PREDEPLOY, "Checking for existing installations...");
     // the context namespace is not set at this point
@@ -453,14 +477,26 @@ export async function deployToDevWithInstaller(deploymentConfig: DeploymentConfi
             exec(`yq w -i config.yaml observability.tracing.endpoint ${tracingEndpoint}`, {slice: installerSlices.INSTALLER_RENDER});
         }
 
-        // TODO: Remove this after #6867 is done
-        werft.log("authProviders", "copy authProviders")
+        werft.log("authProviders", "copy authProviders from secret")
         try {
-            exec(`kubectl get secret preview-envs-authproviders --namespace=keys -o yaml \
-                    | yq r - data.authProviders \
+            exec(`for row in $(kubectl get secret preview-envs-authproviders --namespace=keys -o jsonpath="{.data.authProviders}" \
                     | base64 -d -w 0 \
-                    > ./authProviders`, { silent: true });
-            exec(`yq merge --inplace config.yaml ./authProviders`, { silent: true })
+                    | yq r - authProviders -j \
+                    | jq -r 'to_entries | .[] | @base64'); do
+                        key=$(echo $row | base64 -d | jq -r '.key')
+                        providerId=$(echo $row | base64 -d | jq -r '.value.id | ascii_downcase')
+                        data=$(echo $row | base64 -d | yq r - value --prettyPrint)
+
+                        yq w -i ./config.yaml authProviders[$key].kind "secret"
+                        yq w -i ./config.yaml authProviders[$key].name "$providerId"
+
+                        kubectl create secret generic "$providerId" \
+                            --namespace "${namespace}" \
+                            --from-literal=provider="$data" \
+                            --dry-run=client -o yaml | \
+                            kubectl replace --force -f -
+                    done`, { silent: true })
+
             werft.done('authProviders');
         } catch (err) {
             werft.fail('authProviders', err);

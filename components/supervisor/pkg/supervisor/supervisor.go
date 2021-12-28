@@ -59,11 +59,13 @@ const (
 	gitpodUserName  = "gitpod"
 	gitpodGID       = 33333
 	gitpodGroupName = "gitpod"
+	desktopIDEPort  = 24000
 )
 
 var (
 	additionalServices []RegisterableService
 	apiEndpointOpts    []grpc.ServerOption
+	Version            = ""
 )
 
 // RegisterAdditionalService registers additional services for the API endpoint
@@ -190,6 +192,12 @@ func Run(options ...RunOption) {
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
+
+	internalPorts := []uint32{uint32(cfg.IDEPort), uint32(cfg.APIEndpointPort), uint32(cfg.SSHPort)}
+	if cfg.DesktopIDE != nil {
+		internalPorts = append(internalPorts, desktopIDEPort)
+	}
+
 	var (
 		shutdown                           = make(chan ShutdownReason, 1)
 		ideReady                           = &ideReadyState{cond: sync.NewCond(&sync.Mutex{})}
@@ -205,9 +213,7 @@ func Run(options ...RunOption) {
 			ports.NewConfigService(cfg.WorkspaceID, gitpodConfigService, gitpodService),
 			tunneledPortsService,
 			slirp,
-			uint32(cfg.IDEPort),
-			uint32(cfg.APIEndpointPort),
-			uint32(cfg.SSHPort),
+			internalPorts...,
 		)
 		termMux             = terminal.NewMux()
 		termMuxSrv          = terminal.NewMuxTerminalService(termMux)
@@ -382,6 +388,11 @@ func createGitpodService(cfg *Config, tknsrv api.TokenServiceServer) *gitpod.API
 	gitpodService, err := gitpod.ConnectToServer(endpoint, gitpod.ConnectToServerOpts{
 		Token: tknres.Token,
 		Log:   log.Log,
+		ExtraHeaders: map[string]string{
+			"User-Agent":              "gitpod/supervisor",
+			"X-Workspace-Instance-Id": cfg.WorkspaceInstanceID,
+			"X-Client-Version":        Version,
+		},
 	})
 	if err != nil {
 		log.WithError(err).Error("cannot connect to Gitpod API")
@@ -627,8 +638,8 @@ func launchIDE(cfg *Config, ideConfig *IDEConfig, cmd *exec.Cmd, ideStopped chan
 		s = func() *ideStatus { i := statusShouldRun; return &i }()
 
 		go func() {
-			desktopIDEStatus := runIDEReadinessProbe(cfg, ideConfig, ide)
-			ideReady.Set(true, desktopIDEStatus)
+			IDEStatus := runIDEReadinessProbe(cfg, ideConfig, ide)
+			ideReady.Set(true, IDEStatus)
 		}()
 
 		err = cmd.Wait()
@@ -661,6 +672,7 @@ func prepareIDELaunch(cfg *Config, ideConfig *IDEConfig) *exec.Cmd {
 		args[i] = strings.ReplaceAll(args[i], "{WORKSPACEROOT}", cfg.WorkspaceRoot)
 		args[i] = strings.ReplaceAll(args[i], "{IDEPORT}", strconv.Itoa(cfg.IDEPort))
 		args[i] = strings.ReplaceAll(args[i], "{IDEHOSTNAME}", "0.0.0.0")
+		args[i] = strings.ReplaceAll(args[i], "{DESKTOPIDEPORT}", strconv.Itoa(desktopIDEPort))
 	}
 	log.WithField("args", args).WithField("entrypoint", ideConfig.Entrypoint).Info("preparing IDE launch")
 
@@ -770,6 +782,10 @@ func runIDEReadinessProbe(cfg *Config, ideConfig *IDEConfig, ide IDEKind) (deskt
 		return value
 	}
 
+	defaultProbePort := cfg.IDEPort
+	if ide == DesktopIDE {
+		defaultProbePort = desktopIDEPort
+	}
 	switch ideConfig.ReadinessProbe.Type {
 	case ReadinessProcessProbe:
 		return
@@ -778,7 +794,7 @@ func runIDEReadinessProbe(cfg *Config, ideConfig *IDEConfig, ide IDEKind) (deskt
 		var (
 			schema = defaultIfEmpty(ideConfig.ReadinessProbe.HTTPProbe.Schema, "http")
 			host   = defaultIfEmpty(ideConfig.ReadinessProbe.HTTPProbe.Host, "localhost")
-			port   = defaultIfZero(ideConfig.ReadinessProbe.HTTPProbe.Port, cfg.IDEPort)
+			port   = defaultIfZero(ideConfig.ReadinessProbe.HTTPProbe.Port, defaultProbePort)
 			url    = fmt.Sprintf("%s://%s:%d/%s", schema, host, port, strings.TrimPrefix(ideConfig.ReadinessProbe.HTTPProbe.Path, "/"))
 			client = http.Client{Timeout: 1 * time.Second}
 			tick   = time.NewTicker(500 * time.Millisecond)

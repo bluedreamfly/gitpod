@@ -41,6 +41,8 @@ import { Config } from "../../../src/config";
 import { SnapshotService, WaitForSnapshotOptions } from "./snapshot-service";
 import { SafePromise } from "@gitpod/gitpod-protocol/lib/util/safe-promise";
 import { ClientMetadata } from "../../../src/websocket/websocket-connection-manager";
+import { BitbucketAppSupport } from "../bitbucket/bitbucket-app-support";
+import { URL } from 'url';
 
 @injectable()
 export class GitpodServerEEImpl extends GitpodServerImpl {
@@ -68,6 +70,7 @@ export class GitpodServerEEImpl extends GitpodServerImpl {
 
     @inject(GitHubAppSupport) protected readonly githubAppSupport: GitHubAppSupport;
     @inject(GitLabAppSupport) protected readonly gitLabAppSupport: GitLabAppSupport;
+    @inject(BitbucketAppSupport) protected readonly bitbucketAppSupport: BitbucketAppSupport;
 
     @inject(Config) protected readonly config: Config;
 
@@ -1429,6 +1432,8 @@ export class GitpodServerEEImpl extends GitpodServerImpl {
 
         if (providerHost === "github.com") {
             repositories.push(...(await this.githubAppSupport.getProviderRepositoriesForUser({ user, ...params })));
+        } else if (providerHost === "bitbucket.org" && provider) {
+            repositories.push(...(await this.bitbucketAppSupport.getProviderRepositoriesForUser({ user, provider })));
         } else if (provider?.authProviderType === "GitLab") {
             repositories.push(...(await this.gitLabAppSupport.getProviderRepositoriesForUser({ user, provider })));
         } else {
@@ -1436,8 +1441,30 @@ export class GitpodServerEEImpl extends GitpodServerImpl {
         }
         const projects = await this.projectsService.getProjectsByCloneUrls(repositories.map(r => r.cloneUrl));
 
-        const cloneUrlsInUse = new Set(projects.map(p => p.cloneUrl));
-        repositories.forEach(r => { r.inUse = cloneUrlsInUse.has(r.cloneUrl) });
+        const cloneUrlToProject = new Map(projects.map(p => [p.cloneUrl, p]));
+
+        for (const repo of repositories) {
+            const p = cloneUrlToProject.get(repo.cloneUrl);
+            const repoProvider = new URL(repo.cloneUrl).host.split(".")[0];
+
+            if (p) {
+                if (p.userId) {
+                    const owner = await this.userDB.findUserById(p.userId);
+                    if (owner) {
+                        const ownerProviderMatchingRepoProvider = owner.identities.find((identity, index) => identity.authProviderId.toLowerCase().includes(repoProvider));
+                        if (ownerProviderMatchingRepoProvider) {
+                            repo.inUse = {
+                                userName: ownerProviderMatchingRepoProvider?.authName
+                            }
+                        }
+                    }
+                } else if (p.teamOwners && p.teamOwners[0]) {
+                    repo.inUse = {
+                        userName: p.teamOwners[0] || 'somebody'
+                    }
+                }
+            }
+        }
 
         return repositories;
     }

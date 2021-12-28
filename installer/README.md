@@ -148,21 +148,39 @@ is `true`. External dependencies can be used in their place
 
 ## Auth Providers
 
-> This may move to a secret in future [#6867](https://github.com/gitpod-io/gitpod/issues/6867)
-
 Gitpod must be connected to a Git provider. This can be done via the
-dashboard on first load, or by providing `authProviders` configuration.
+dashboard on first load, or by providing `authProviders` configuration
+as a Kubernetes secret.
+
+### Setting via config
+
+1. Update your configuration file:
 
 ```yaml
 authProviders:
-  - id: Public-GitHub
-    host: github.com
-    type: GitHub
-    oauth:
-      clientId: xxx
-      clientSecret: xxx
-      callBackUrl: https://$DOMAIN/auth/github.com/callback
-      settingsUrl: xxx
+  - kind: secret
+    name: public-github
+```
+
+2. Create a secret file:
+
+```yaml
+# Save this public-github.yaml
+
+id: Public-GitHub
+host: github.com
+type: GitHub
+oauth:
+  clientId: xxx
+  clientSecret: xxx
+  callBackUrl: https://$DOMAIN/auth/github.com/callback
+  settingsUrl: xxx
+```
+
+3. Create the secret:
+
+```shell
+kubectl create secret generic --from-file=provider=./public-github.yaml public-github
 ```
 
 ## In-cluster vs External Dependencies
@@ -437,6 +455,25 @@ metadata:
 data:
   tls.crt: xxx
   tls.key: xxx
+```
+
+## How can I install to a Kubernetes namespace?
+
+By default, Gitpod will be installed to the `default`
+[Kubernetes namespace](https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces).
+To install to a different namespace, pass a `namespace` flag to the `render`
+command.
+
+```shell
+./installer render --config gitpod.config.yaml --namespace gitpod > gitpod.yaml
+```
+
+**IMPORTANT**: this does not create the namespace, so you will need to create
+that separately. This is so that uninstallation of Gitpod does not remove any
+Kubernetes objects, such as your TLS certificate or connection secrets.
+
+```shell
+kubectl create namespace gitpod
 ```
 
 # Todo
