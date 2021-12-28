@@ -50,6 +50,8 @@ var gitTrackCommand = &cobra.Command{
 			log.WithError(err).Fatal("error connecting to supervisor")
 		}
 
+		defer client.Close()
+
 		type GitEventParams struct {
 			Command             string `json:"command,omitempty"`
 			WorkspaceId         string `json:"workspaceId,omitempty"`
