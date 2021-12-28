@@ -6,6 +6,7 @@ package cmd
 
 import (
 	_ "embed"
+	"fmt"
 	"net"
 
 	"github.com/bombsimon/logrusr"
@@ -91,9 +92,13 @@ var runCmd = &cobra.Command{
 			if err != nil {
 				return
 			}
+			wsinfo := workspaceInfoProvider.WorkspaceInfo(session.Conn.User())
+			if wsinfo == nil {
+				return fmt.Errorf("auth-failed")
+			}
 			session.Remote = &sshproxy.Remote{
 				AuthKey: key,
-				Address: session.Conn.User() + ":23001",
+				Address: wsinfo.IPAddress + ":23001",
 			}
 			return nil
 		}
