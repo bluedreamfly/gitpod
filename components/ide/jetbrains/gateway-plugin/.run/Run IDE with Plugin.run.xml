@@ -12,7 +12,7 @@
       <option name="taskNames">
         <list>
           <option value="runIde" />
-          <option value="--args='jetbrains-gateway://connect#gitpod=%7B%22gitpodHost%22%3A%22ak-jb-gateway-plugin.staging.gitpod-dev.com%22%7D'" />
+          <option value="--args='jetbrains-gateway://connect#gitpod=%7B%22gitpodHost%22%3A%22ak-jb-gateway-plugin.staging.gitpod-dev.com%22%2C%22workspaceId%22%3A%22blue-antelope-j2hcw46v%22%7D'" />
         </list>
       </option>
       <option name="vmOptions" value="" />
