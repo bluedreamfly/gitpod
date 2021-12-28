@@ -41,6 +41,7 @@ RUN chmod -R ugo+w /vscode-reh-linux-x64/extensions
 FROM scratch
 # copy static web resources in first layer to serve from blobserve
 COPY --from=code_installer --chown=33333:33333 /vscode-web/ /ide/
+RUN rm -rf /ide/extensions/*
 COPY --from=code_installer --chown=33333:33333 /vscode-reh-linux-x64/ /ide/
 COPY --chown=33333:33333 startup.sh supervisor-ide-config.json /ide/
 
