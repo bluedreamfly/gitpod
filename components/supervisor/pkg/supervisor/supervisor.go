@@ -1041,6 +1041,19 @@ func startSSHServer(ctx context.Context, cfg *Config, wg *sync.WaitGroup) {
 	}
 
 	go func() {
+		// TODO: just for test, write a test ssh key for all workspace
+
+		err := os.MkdirAll("/home/gitpod/.ssh/", 0751)
+		if err != nil {
+			fmt.Println("---------------+++++++--------------", err)
+		}
+
+		err = os.WriteFile("/home/gitpod/.ssh/authorized_keys", []byte("ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBNzFqWGK8KTNh8/UTg1UIwVzsxdb9XvGAufWvdJgzooV+qLiT3xXgYTGHSFwX7Ws1iDBF+MSHTW4+OXCltpzMEs= gitpod@only-for-test"), 0600)
+
+		if err != nil {
+			fmt.Println("-----------------------------", err)
+		}
+
 		ssh, err := newSSHServer(ctx, cfg)
 		if err != nil {
 			log.WithError(err).Error("err starting SSH server")

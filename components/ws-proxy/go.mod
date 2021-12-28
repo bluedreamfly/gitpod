@@ -14,6 +14,7 @@ require (
 	github.com/klauspost/cpuid/v2 v2.0.9
 	github.com/sirupsen/logrus v1.8.1
 	github.com/spf13/cobra v1.1.3
+	golang.org/x/crypto v0.0.0-20210220033148-5ea612d1eb83
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1
 	k8s.io/api v0.22.2
 	k8s.io/apimachinery v0.22.2

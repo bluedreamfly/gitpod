@@ -6,6 +6,7 @@ packages:
       - "go.mod"
       - "go.sum"
       - "public/**"
+      - "cmd/ssh-key/**"
     deps:
       - components/common-go:lib
       - components/content-service-api/go:lib
@@ -42,6 +43,7 @@ packages:
       - "go.mod"
       - "go.sum"
       - "public/**"
+      - "cmd/ssh-key/**"
     deps:
       - components/common-go:lib
       - components/content-service-api/go:lib
